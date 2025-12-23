@@ -1,0 +1,8 @@
+{
+  "name": "Vitor Gonzalez Portfolio Clone",
+  "description": "A high-end design portfolio for Vitor Gonzalez replicating the provided video reference with smooth animations and layout.",
+  "requestFramePermissions": [],
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
