@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Settings } from 'lucide-react';
-import TunnelAnimation from './TunnelAnimation';
+
+// Lazy load heavy 3D animation
+const TunnelAnimation = React.lazy(() => import('./TunnelAnimation'));
 
 interface FooterProps {
   onAdminClick: () => void;
@@ -44,10 +46,6 @@ const Footer: React.FC<FooterProps> = ({
 
            </div>
 
-           {/* 
-              BIG WHATSAPP BUTTON 
-              - rounded-full ensures perfect pill shape regardless of height
-           */}
            <motion.a 
              href="https://wa.me/5548992079358"
              target="_blank"
@@ -77,12 +75,14 @@ const Footer: React.FC<FooterProps> = ({
                    )}
                </div>
                
-               {/* Tunnel Animation - Adjusted Size (Scale 0.6) */}
+               {/* Tunnel Animation - Lazy Loaded */}
                <div className="hidden md:flex items-center justify-center mb-6 md:mr-10">
                    <div className="relative w-32 h-32 flex items-center justify-center">
                        <div className="absolute transform scale-[0.6]">
                            <div style={{ width: 200, height: 200 }}>
-                                <TunnelAnimation />
+                                <Suspense fallback={<div className="w-full h-full bg-gray-300 rounded-full animate-pulse opacity-50"></div>}>
+                                    <TunnelAnimation />
+                                </Suspense>
                            </div>
                        </div>
                    </div>
@@ -90,7 +90,7 @@ const Footer: React.FC<FooterProps> = ({
            </div>
         </div>
 
-        {/* Copyright & Socials - Increased margin-top (mt-16) to clear animation */}
+        {/* Copyright & Socials */}
         <div className="flex flex-col md:flex-row justify-between items-center text-xs md:text-sm font-medium text-gray-500 mt-16 uppercase tracking-wide">
            <p>© 2023 Design by Vitor. All Right Reserved.</p>
            
@@ -102,7 +102,6 @@ const Footer: React.FC<FooterProps> = ({
            </div>
         </div>
 
-        {/* Admin Access Button (Subtle) */}
         <div className="mt-12 flex justify-center md:justify-end">
            <button 
              onClick={onAdminClick} 
