@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid } from 'lucide-react';
-import { Project, BlockData, BlockSize } from '../App';
+import { Project, BlockData, BlockSize } from '../types';
 
 interface ProjectModalProps {
   project: Project;

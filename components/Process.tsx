@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Plus, Trash2 } from 'lucide-react';
-import { Project } from '../App';
+import { Project } from '../types';
 
 interface ProcessProps {
   projects: Project[];
