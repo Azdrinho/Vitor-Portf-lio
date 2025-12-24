@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 // URL do seu projeto Supabase
-const supabaseUrl = 'https://ybkzazuxhzohxkmcsllx.supabase.co';
+const supabaseUrl = 'https://tpvdohdpfljvotmdogpv.supabase.co';
 
 // Chave Pública (Anon Key) fornecida
-const supabaseKey = 'sb_publishable_ucyzUtIjzlgZsYMUGSIypQ_sdMk-Hxj'; 
+const supabaseKey = 'sb_publishable_SoNC_8e6aN4Ek9bTDEzo5g_kSKJCwlf'; 
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

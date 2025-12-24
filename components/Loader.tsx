@@ -6,7 +6,7 @@ const Loader: React.FC = () => {
 
   useEffect(() => {
     // Faster loading simulation for a snappier feel
-    const duration = 2000; 
+    const duration = 1200; // Reduced from 2000 to match App.tsx quicker timeout
     const steps = 30;
     const intervalTime = duration / steps;
 

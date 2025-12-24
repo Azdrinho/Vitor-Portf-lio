@@ -176,8 +176,8 @@ const App: React.FC = () => {
 
     const initData = async () => {
         await Promise.all([fetchProjects(), fetchSettings()]);
-        // Keep the loader for at least 2.5s for the effect
-        setTimeout(() => setLoading(false), 2500);
+        // Reduced waiting time for snappier experience (was 2500)
+        setTimeout(() => setLoading(false), 1200);
     };
     initData();
 
@@ -218,11 +218,7 @@ const App: React.FC = () => {
         return;
     }
 
-    // Refetch to update grid
-    await fetchProjects();
-    
-    // Open for editing
-    // We need to construct the Project object manually to match local types immediately or just use the fetched one
+    // Construct new project object immediately for local state
     const newProject: Project = {
         id: data.id,
         title: data.title,
@@ -235,6 +231,11 @@ const App: React.FC = () => {
         layoutMode: 'collage',
         gap: 8
     };
+
+    // Update local state without re-fetching everything (Major Speedup)
+    setProjects(prev => reflowGrid([newProject, ...prev]));
+    
+    // Open for editing
     setSelectedProject(newProject);
   };
 
