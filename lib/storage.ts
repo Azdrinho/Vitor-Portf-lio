@@ -7,12 +7,12 @@ import { supabase } from './supabaseClient';
  */
 export const uploadImage = async (file: File, bucket: string = 'portfolio'): Promise<string | null> => {
   try {
-    // Create a unique file name to avoid collisions
+    // Generate a clean file name
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = fileName;
 
-    // Upload the file
+    // 1. Attempt Upload
     const { error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
@@ -24,15 +24,27 @@ export const uploadImage = async (file: File, bucket: string = 'portfolio'): Pro
       throw uploadError;
     }
 
-    // Get the Public URL
-    const { data } = supabase.storage
+    // 2. Get Public URL
+    const { data: urlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
-    return data.publicUrl;
-  } catch (error) {
+    return urlData.publicUrl;
+  } catch (error: any) {
     console.error('Error uploading image:', error);
-    alert(`Erro ao fazer upload. Verifique se o bucket "${bucket}" existe e é público no Supabase.`);
+    
+    // Extract specific error message
+    const errorMsg = error.message || error.error_description || JSON.stringify(error);
+    
+    // Show detailed alert to user
+    alert(
+        `Falha no Upload:\n${errorMsg}\n\n` +
+        `Possíveis causas:\n` +
+        `1. Falta de Policy (RLS) para INSERT no bucket '${bucket}'. (Bucket Publico só libera leitura)\n` +
+        `2. Arquivo muito grande (limite padrão é 50MB).\n` +
+        `3. Nome de arquivo inválido.`
+    );
+    
     return null;
   }
 };
