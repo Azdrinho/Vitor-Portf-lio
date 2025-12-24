@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid } from 'lucide-react';
+import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid, Loader2 } from 'lucide-react';
 import { Project, BlockData, BlockSize } from '../types';
+import { uploadImage } from '../lib/storage'; // Import upload utility
 
 interface ProjectModalProps {
   project: Project;
@@ -22,19 +23,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const [likes, setLikes] = useState(project.likes || 0);
   const [hasLiked, setHasLiked] = useState(false);
   
-  // Initialize blocks: Use saved blocks if available, otherwise generate from simple images array
+  // Initialize blocks
   const [blocks, setBlocks] = useState<BlockData[]>(() => {
     if (project.blocks && project.blocks.length > 0) {
       return project.blocks;
     }
-    
-    // Fallback generation for legacy projects
     const initialUrls = project.images && project.images.length > 0 
       ? project.images 
       : [project.image, project.image, project.image];
     
     return initialUrls.map((url, index) => {
-       // Auto-assign some varied sizes for initial look
        let size: BlockSize = 'square';
        if (index === 0) size = 'wide';
        if (index === 3) size = 'wide';
@@ -50,6 +48,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const [layoutMode, setLayoutMode] = useState<'collage' | 'pdf'>(project.layoutMode || 'collage');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // Upload loading state
 
   // -- Refs for Image Upload --
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,8 +65,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   // -- Handlers --
 
   const handleSave = () => {
-    // We primarily save the structured 'blocks' now.
-    // Also update legacy 'images' array for backward compatibility if needed elsewhere
     const plainImages = blocks.map(b => b.url);
     const updatedCoverImage = plainImages.length > 0 ? plainImages[0] : project.image;
 
@@ -77,7 +74,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
       category,
       description,
       images: plainImages,
-      blocks: blocks, // Persist structure
+      blocks: blocks,
       gap,
       layoutMode,
       image: updatedCoverImage,
@@ -91,13 +88,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (hasLiked) return; // Prevent spamming
+    if (hasLiked) return; 
 
     const newLikes = likes + 1;
     setLikes(newLikes);
     setHasLiked(true);
 
-    // Persist immediately
     onSave({
         ...project,
         likes: newLikes
@@ -119,7 +115,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const handleAddBlock = () => {
     const newBlock: BlockData = {
         id: Math.random().toString(36).substr(2, 9),
-        url: "https://picsum.photos/800/600?random=" + Math.floor(Math.random() * 1000),
+        url: "https://placehold.co/800x600/EEE/31343C?text=Upload+Image", // Placeholder until upload
         size: 'square'
     };
     setBlocks([...blocks, newBlock]);
@@ -141,45 +137,34 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
     }
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && activeBlockId) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
+      setIsUploading(true);
+      
+      // Upload to Supabase Storage
+      // NOTE: Ensure you have a bucket named 'portfolio' set to Public in Supabase
+      const publicUrl = await uploadImage(file, 'portfolio');
+
+      if (publicUrl) {
           setBlocks(prev => prev.map(block => 
             block.id === activeBlockId 
-                ? { ...block, url: event.target.result as string }
+                ? { ...block, url: publicUrl }
                 : block
           ));
           setHasUnsavedChanges(true);
-        }
-      };
-      reader.readAsDataURL(file);
+      }
+      
+      setIsUploading(false);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handlePDFUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Simulation of PDF import
-      const pdfMockPages = [
-         "https://placehold.co/800x1100/EEE/31343C?text=PDF+Page+1",
-         "https://placehold.co/800x1100/EEE/31343C?text=PDF+Page+2",
-         "https://placehold.co/800x1100/EEE/31343C?text=PDF+Page+3",
-      ];
-      
-      const newBlocks: BlockData[] = pdfMockPages.map(url => ({
-        id: Math.random().toString(36).substr(2, 9),
-        url,
-        size: 'wide'
-      }));
-
-      setBlocks(newBlocks);
-      setLayoutMode('pdf');
-      setGap(20);
-      setHasUnsavedChanges(true);
-    }
+    // For now, PDF upload logic remains simulated or needs a PDF-to-Image converter backend/library.
+    // If you want to upload the PDF file itself, we can use the same logic, but we need to know how to display it.
+    alert("PDF conversion requires a backend service or specialized library. For this demo, please upload images directly (JPG/PNG).");
   };
 
   // Utility to map size names to Tailwind grid classes
@@ -318,9 +303,19 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                               alt="Project Asset" 
                               className={`w-full h-full object-cover block pointer-events-none select-none ${layoutMode === 'pdf' ? 'h-auto' : ''}`}
                            />
+
+                           {/* Upload Loading Overlay */}
+                           {isUploading && activeBlockId === block.id && (
+                               <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-sm">
+                                   <div className="flex flex-col items-center gap-2 text-white">
+                                       <Loader2 size={32} className="animate-spin text-[#00c05e]" />
+                                       <span className="text-xs font-bold uppercase tracking-widest">Uploading...</span>
+                                   </div>
+                               </div>
+                           )}
                            
                            {/* --- EDITOR OVERLAY --- */}
-                           {isLoggedIn && (
+                           {isLoggedIn && !isUploading && (
                              <div className="absolute inset-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 backdrop-blur-[2px]">
                                 
                                 {/* Drag Indicator (Center) */}
@@ -530,9 +525,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                   )}
                   <button 
                     onClick={handleSave}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#00c05e] text-white rounded-full font-bold uppercase text-xs tracking-wide hover:bg-white hover:text-black transition-all"
+                    disabled={isUploading}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold uppercase text-xs tracking-wide transition-all ${
+                        isUploading 
+                            ? "bg-gray-600 cursor-not-allowed text-gray-400" 
+                            : "bg-[#00c05e] text-white hover:bg-white hover:text-black"
+                    }`}
                   >
-                     <Save size={16} /> Save Changes
+                     {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                     {isUploading ? "Uploading..." : "Save Changes"}
                   </button>
                </div>
 

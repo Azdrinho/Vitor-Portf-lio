@@ -98,42 +98,47 @@ const App: React.FC = () => {
   
   const fetchProjects = async () => {
     try {
-      // Fetch projects ordered by creation
+      // Optimized: Fetch projects AND their blocks in a single relational query.
+      // Selecting specific columns helps performance.
       const { data: projectsData, error: projError } = await supabase
         .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+            *,
+            project_blocks (
+                id,
+                url,
+                size,
+                sort_order
+            )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50); // Safety limit to prevent timeouts
 
       if (projError) throw projError;
 
-      // For each project, fetch its blocks
-      // Ideally we use a join, but for simplicity we can do a secondary fetch or a deep select
-      const { data: blocksData, error: blockError } = await supabase
-        .from('project_blocks')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      if (blockError) throw blockError;
-
       // Merge data
-      const formattedProjects: Project[] = (projectsData || []).map(p => ({
-        id: p.id,
-        title: p.title,
-        category: p.category,
-        image: p.image,
-        description: p.description,
-        className: "", // Calculated by reflow
-        layoutMode: p.layout_mode as 'collage' | 'pdf',
-        gap: p.gap,
-        likes: p.likes,
-        blocks: blocksData
-            ?.filter((b: any) => b.project_id === p.id)
-            .map((b: any) => ({
+      const formattedProjects: Project[] = (projectsData || []).map((p: any) => {
+        // Sort blocks manually as nested sort behavior can vary
+        const blocks = p.project_blocks || [];
+        blocks.sort((a: any, b: any) => a.sort_order - b.sort_order);
+
+        return {
+            id: p.id,
+            title: p.title,
+            category: p.category,
+            image: p.image,
+            description: p.description,
+            className: "", // Calculated by reflow
+            layoutMode: p.layout_mode as 'collage' | 'pdf',
+            gap: p.gap,
+            likes: p.likes,
+            blocks: blocks.map((b: any) => ({
                 id: b.id,
                 url: b.url,
                 size: b.size as BlockSize
-            })) || []
-      }));
+            }))
+        };
+      });
 
       setProjects(reflowGrid(formattedProjects));
     } catch (error) {
