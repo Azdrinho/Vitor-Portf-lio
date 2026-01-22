@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid, Loader2 } from 'lucide-react';
+import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid, Loader2, Link, Rows, Camera } from 'lucide-react';
 import { Project, BlockData, BlockSize } from '../types';
 import { uploadImage } from '../lib/storage'; // Import upload utility
 
@@ -18,6 +18,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const [category, setCategory] = useState(project.category);
   const [description, setDescription] = useState(project.description || "");
   const [gap, setGap] = useState(project.gap ?? 8);
+  
+  // -- Cover Image State --
+  const [coverImage, setCoverImage] = useState(project.image);
   
   // -- Like System State --
   const [likes, setLikes] = useState(project.likes || 0);
@@ -48,10 +51,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const [layoutMode, setLayoutMode] = useState<'collage' | 'pdf'>(project.layoutMode || 'collage');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // Upload loading state
+  const [isUploading, setIsUploading] = useState(false); // General upload loading state
+  const [isUploadingCover, setIsUploadingCover] = useState(false); // Specific cover upload state
 
   // -- Refs for Image Upload --
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // For blocks
+  const coverInputRef = useRef<HTMLInputElement>(null); // For cover
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
   // -- Effects --
@@ -66,8 +71,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
 
   const handleSave = () => {
     const plainImages = blocks.map(b => b.url);
-    const updatedCoverImage = plainImages.length > 0 ? plainImages[0] : project.image;
-
+    
+    // We now use the explicit 'coverImage' state instead of deriving it from blocks[0]
     onSave({
       ...project,
       title,
@@ -77,7 +82,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
       blocks: blocks,
       gap,
       layoutMode,
-      image: updatedCoverImage,
+      image: coverImage, // Save the explicit cover image
       likes 
     });
     
@@ -122,12 +127,25 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
     setHasUnsavedChanges(true);
   };
 
+  const handleAddUrlBlock = () => {
+    const url = window.prompt("Paste direct Image URL (e.g. Behance source):");
+    if (url) {
+        const newBlock: BlockData = {
+            id: Math.random().toString(36).substr(2, 9),
+            url: url,
+            size: 'big' // Default to big
+        };
+        setBlocks([...blocks, newBlock]);
+        setHasUnsavedChanges(true);
+    }
+  };
+
   const handleChangeSize = (id: string, newSize: BlockSize) => {
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, size: newSize } : b));
     setHasUnsavedChanges(true);
   };
 
-  // --- Upload Logic ---
+  // --- Upload Logic (Blocks) ---
 
   const triggerImageUpload = (id: string) => {
     setActiveBlockId(id);
@@ -142,8 +160,6 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
     if (file && activeBlockId) {
       setIsUploading(true);
       
-      // Upload to Supabase Storage
-      // NOTE: Ensure you have a bucket named 'portfolio' set to Public in Supabase
       const publicUrl = await uploadImage(file, 'portfolio');
 
       if (publicUrl) {
@@ -156,16 +172,30 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
       }
       
       setIsUploading(false);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handlePDFUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // For now, PDF upload logic remains simulated or needs a PDF-to-Image converter backend/library.
-    // If you want to upload the PDF file itself, we can use the same logic, but we need to know how to display it.
-    alert("PDF conversion requires a backend service or specialized library. For this demo, please upload images directly (JPG/PNG).");
+  // --- Upload Logic (Cover) ---
+  const triggerCoverUpload = () => {
+    if (coverInputRef.current) {
+        coverInputRef.current.click();
+    }
   };
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        setIsUploadingCover(true);
+        const publicUrl = await uploadImage(file, 'portfolio');
+        if (publicUrl) {
+            setCoverImage(publicUrl);
+            setHasUnsavedChanges(true);
+        }
+        setIsUploadingCover(false);
+    }
+  }
+
 
   // Utility to map size names to Tailwind grid classes
   const getSizeClass = (size: BlockSize) => {
@@ -186,6 +216,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
       onClick={onClose}
     >
       
+      {/* Hidden Inputs */}
       <input 
         type="file" 
         accept="image/*" 
@@ -194,73 +225,101 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
         onChange={handleImageFileChange}
         onClick={(e) => e.stopPropagation()}
       />
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={coverInputRef} 
+        className="hidden" 
+        onChange={handleCoverFileChange}
+        onClick={(e) => e.stopPropagation()}
+      />
 
       {/* --- Header --- */}
       <div 
-        className="w-full bg-white z-30 flex justify-between items-start pt-8 px-6 md:px-12 pb-4 shrink-0"
+        className="w-full bg-white z-30 flex justify-between items-start pt-8 px-6 md:px-12 pb-4 shrink-0 border-b border-transparent"
         onClick={(e) => e.stopPropagation()}
       >
-         {/* Left Side: Title & Description */}
-         <div className="flex flex-col w-full max-w-4xl">
+         {/* Left Side: Cover + Info */}
+         <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
             
-            {/* Category */}
-            <div className="mb-2">
-                {isLoggedIn ? (
-                <input 
-                    value={category}
-                    onChange={(e) => { setCategory(e.target.value); setHasUnsavedChanges(true); }}
-                    className="text-xs font-bold uppercase tracking-widest text-[#00c05e] bg-transparent focus:outline-none w-full placeholder-gray-300"
-                    placeholder="CATEGORY"
-                />
-                ) : (
-                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{category}</span>
-                )}
-            </div>
-
-            {/* Title */}
-            <div className="mb-4">
-                {isLoggedIn ? (
-                <input 
-                    value={title}
-                    onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
-                    className="font-heading text-4xl md:text-6xl uppercase leading-none bg-transparent focus:outline-none w-full placeholder-gray-200"
-                    placeholder="PROJECT TITLE"
-                />
-                ) : (
-                <h2 className="font-heading text-4xl md:text-6xl uppercase leading-none">{title}</h2>
-                )}
-            </div>
-
-            {/* Description */}
-            <div className="w-full">
-                {isLoggedIn ? (
-                    <div className="relative group">
-                        <textarea 
-                            value={description}
-                            onChange={(e) => { setDescription(e.target.value); setHasUnsavedChanges(true); }}
-                            placeholder="Add a brief description about this project..."
-                            className="w-full text-lg md:text-xl font-light text-gray-600 bg-transparent focus:text-black focus:outline-none resize-none overflow-hidden min-h-[3em] placeholder-gray-200"
-                            style={{ height: 'auto' }}
-                            rows={2}
-                            spellCheck={false}
-                        />
-                        <span className="absolute -left-6 top-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <FileText size={16} />
-                        </span>
+            {/* Cover Image Editor */}
+            <div className="relative group shrink-0 w-32 h-32 md:w-48 md:h-48 bg-gray-100 rounded-lg overflow-hidden shadow-sm self-start">
+                <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
+                
+                {/* Upload Overlay */}
+                {isLoggedIn && (
+                    <div 
+                        onClick={triggerCoverUpload}
+                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer hover:bg-black/50"
+                    >
+                        {isUploadingCover ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                        <span className="text-[10px] font-bold uppercase tracking-widest mt-2">Change Cover</span>
                     </div>
-                ) : (
-                    description && (
-                        <p className="text-lg md:text-xl font-light text-gray-600 leading-relaxed max-w-2xl">
-                            {description}
-                        </p>
-                    )
                 )}
+            </div>
+
+            {/* Text Inputs */}
+            <div className="flex flex-col w-full">
+                
+                {/* Category */}
+                <div className="mb-2">
+                    {isLoggedIn ? (
+                    <input 
+                        value={category}
+                        onChange={(e) => { setCategory(e.target.value); setHasUnsavedChanges(true); }}
+                        className="text-xs font-bold uppercase tracking-widest text-[#00c05e] bg-transparent focus:outline-none w-full placeholder-gray-300"
+                        placeholder="CATEGORY"
+                    />
+                    ) : (
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{category}</span>
+                    )}
+                </div>
+
+                {/* Title */}
+                <div className="mb-4">
+                    {isLoggedIn ? (
+                    <input 
+                        value={title}
+                        onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
+                        className="font-heading text-4xl md:text-6xl uppercase leading-none bg-transparent focus:outline-none w-full placeholder-gray-200"
+                        placeholder="PROJECT TITLE"
+                    />
+                    ) : (
+                    <h2 className="font-heading text-4xl md:text-6xl uppercase leading-none">{title}</h2>
+                    )}
+                </div>
+
+                {/* Description */}
+                <div className="w-full">
+                    {isLoggedIn ? (
+                        <div className="relative group">
+                            <textarea 
+                                value={description}
+                                onChange={(e) => { setDescription(e.target.value); setHasUnsavedChanges(true); }}
+                                placeholder="Add a brief description about this project..."
+                                className="w-full text-lg md:text-xl font-light text-gray-600 bg-transparent focus:text-black focus:outline-none resize-none overflow-hidden min-h-[3em] placeholder-gray-200"
+                                style={{ height: 'auto' }}
+                                rows={2}
+                                spellCheck={false}
+                            />
+                            <span className="absolute -left-6 top-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <FileText size={16} />
+                            </span>
+                        </div>
+                    ) : (
+                        description && (
+                            <p className="text-lg md:text-xl font-light text-gray-600 leading-relaxed max-w-2xl">
+                                {description}
+                            </p>
+                        )
+                    )}
+                </div>
             </div>
 
          </div>
          
          {/* Close Button */}
-         <div className="flex items-center gap-4">
+         <div className="flex items-center gap-4 pl-4">
             <button 
               onClick={onClose}
               className="w-12 h-12 bg-gray-100 hover:bg-black hover:text-white rounded-full flex items-center justify-center transition-colors duration-300"
@@ -283,7 +342,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                 }}
                 className={
                     layoutMode === 'pdf' 
-                    ? "flex flex-col items-center w-full gap-8" 
+                    ? "flex flex-col items-center w-full gap-0" // Gap 0 for seamless scrolling
                     : "grid grid-cols-1 md:grid-cols-2 w-full auto-rows-min"
                 }
                 style={layoutMode === 'collage' ? { gap: `${gap}px` } : {}}
@@ -301,7 +360,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                            <img 
                               src={block.url} 
                               alt="Project Asset" 
-                              className={`w-full h-full object-contain bg-[#f3f3f3] block pointer-events-none select-none ${layoutMode === 'pdf' ? 'h-auto' : ''}`}
+                              className={`w-full h-full object-contain bg-[#f3f3f3] block pointer-events-none select-none ${layoutMode === 'pdf' ? 'h-auto w-full' : ''}`}
                            />
 
                            {/* Upload Loading Overlay */}
@@ -344,7 +403,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                                     </button>
                                 </div>
 
-                                {/* Bottom Bar: MODERN SIZE CONTROLS */}
+                                {/* Bottom Bar: MODERN SIZE CONTROLS (Only in Grid Mode) */}
                                 {layoutMode === 'collage' && (
                                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
                                         <div className="flex items-center gap-2 bg-[#1a1a1a]/90 backdrop-blur-xl p-1.5 rounded-full border border-white/10 shadow-2xl scale-90 md:scale-100">
@@ -420,15 +479,25 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                 })}
             </Reorder.Group>
 
-            {/* Add New Block Button */}
+            {/* Add New Block Buttons */}
             {isLoggedIn && (
-                <button 
-                    onClick={handleAddBlock}
-                    className="mt-8 w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-[#00c05e] hover:text-[#00c05e] hover:bg-green-50/50 transition-all group"
-                >
-                    <Plus size={32} className="group-hover:scale-110 transition-transform" />
-                    <span className="font-bold uppercase tracking-widest text-xs">Add New Content Block</span>
-                </button>
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button 
+                        onClick={handleAddBlock}
+                        className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-gray-400 hover:text-black hover:bg-gray-50 transition-all group"
+                    >
+                        <Plus size={24} className="group-hover:scale-110 transition-transform" />
+                        <span className="font-bold uppercase tracking-widest text-xs">Add Placeholder</span>
+                    </button>
+
+                    <button 
+                        onClick={handleAddUrlBlock}
+                        className="w-full py-6 border-2 border-dashed border-[#00c05e]/30 rounded-xl flex flex-col items-center justify-center gap-2 text-[#00c05e] hover:border-[#00c05e] hover:bg-[#00c05e]/5 transition-all group"
+                    >
+                        <Link size={24} className="group-hover:scale-110 transition-transform" />
+                        <span className="font-bold uppercase tracking-widest text-xs">Add via URL (Behance)</span>
+                    </button>
+                </div>
             )}
 
              {/* Bottom Action (View Only) with Functional Like Button */}
@@ -471,24 +540,19 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                
                {/* Controls Left */}
                <div className="flex items-center gap-6 w-full md:w-auto">
-                  <div className="relative">
-                     <input 
-                       type="file" 
-                       accept=".pdf" 
-                       id="pdf-upload" 
-                       className="hidden" 
-                       onChange={handlePDFUpload}
-                     />
-                     <label 
-                       htmlFor="pdf-upload"
-                       className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400 hover:text-white cursor-pointer transition-colors"
-                     >
-                        <FileText size={16} /> Import PDF
-                     </label>
-                  </div>
+                  
+                  {/* Layout Switcher */}
+                  <button 
+                    onClick={() => { setLayoutMode(layoutMode === 'collage' ? 'pdf' : 'collage'); setHasUnsavedChanges(true); }}
+                    className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition-colors ${layoutMode === 'pdf' ? 'text-[#00c05e]' : 'text-gray-400 hover:text-white'}`}
+                  >
+                     {layoutMode === 'collage' ? <Rows size={16}/> : <LayoutGrid size={16}/>}
+                     {layoutMode === 'collage' ? "Switch to Stack (Long)" : "Switch to Grid"}
+                  </button>
 
                   <div className="h-4 w-[1px] bg-gray-700 hidden md:block"></div>
 
+                  {/* Gap Control */}
                   <div className="flex items-center gap-3">
                      <LayoutGrid size={16} className="text-gray-400" />
                      <div className="flex items-center gap-2">
