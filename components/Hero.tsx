@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { Camera, Loader2, Upload } from 'lucide-react';
+import { uploadImage } from '../lib/storage';
 
 interface HeroProps {
   isLoggedIn?: boolean;
@@ -7,6 +9,8 @@ interface HeroProps {
   setTitle?: (v: string) => void;
   subtitle?: string;
   setSubtitle?: (v: string) => void;
+  heroImage?: string;
+  setHeroImage?: (v: string) => void;
 }
 
 const Hero: React.FC<HeroProps> = ({ 
@@ -14,12 +18,36 @@ const Hero: React.FC<HeroProps> = ({
   title = "Freelance", 
   setTitle, 
   subtitle = "Designer & Developer", 
-  setSubtitle 
+  setSubtitle,
+  heroImage,
+  setHeroImage
 }) => {
   const { scrollY } = useScroll();
   // Move text slightly slower than scroll to create depth
   const textY = useTransform(scrollY, [0, 500], [0, 150]);
   
+  // Upload Logic
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+        fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && setHeroImage) {
+        setIsUploading(true);
+        const url = await uploadImage(file, 'portfolio');
+        if (url) {
+            setHeroImage(url);
+        }
+        setIsUploading(false);
+    }
+  };
+
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#EAEAEA]">
       
@@ -128,10 +156,32 @@ const Hero: React.FC<HeroProps> = ({
           className="absolute bottom-0 left-0 w-full z-[10] flex justify-center items-end pointer-events-none"
       >
            <img 
-             src="https://pikaso.cdnpk.net/private/production/2896258270/upload.png?token=exp=1766793600~hmac=2c97790b8d7ad380363ac432f166f4bda712d727f48dcdceefd435b6a6c6d21b&preview=1" 
+             src={heroImage || "https://pikaso.cdnpk.net/private/production/2896258270/upload.png?token=exp=1766793600~hmac=2c97790b8d7ad380363ac432f166f4bda712d727f48dcdceefd435b6a6c6d21b&preview=1"} 
              alt="Vitor Gonzalez" 
              className="h-[80vh] md:h-[90vh] w-auto max-w-none object-contain drop-shadow-2xl"
            />
+
+           {/* UPLOAD BUTTON OVERLAY (ADMIN ONLY) */}
+           {isLoggedIn && setHeroImage && (
+             <div className="absolute bottom-20 z-[30] pointer-events-auto">
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleFileChange}
+                />
+                <button 
+                    onClick={handleUploadClick}
+                    disabled={isUploading}
+                    className="flex items-center gap-2 px-6 py-3 bg-black/80 backdrop-blur-md text-white rounded-full font-bold uppercase text-xs tracking-wider border border-white/20 hover:bg-[#00c05e] hover:text-black transition-all shadow-xl"
+                >
+                    {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                    {isUploading ? "Uploading..." : "Change Hero Photo"}
+                </button>
+             </div>
+           )}
+
       </motion.div>
 
     </section>

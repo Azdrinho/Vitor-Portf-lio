@@ -301,7 +301,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                            <img 
                               src={block.url} 
                               alt="Project Asset" 
-                              className={`w-full h-full object-cover block pointer-events-none select-none ${layoutMode === 'pdf' ? 'h-auto' : ''}`}
+                              className={`w-full h-full object-contain bg-[#f3f3f3] block pointer-events-none select-none ${layoutMode === 'pdf' ? 'h-auto' : ''}`}
                            />
 
                            {/* Upload Loading Overlay */}

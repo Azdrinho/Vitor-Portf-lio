@@ -79,6 +79,7 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<Record<string, string>>({
     hero_title: "Freelance",
     hero_subtitle: "Designer & Developer",
+    hero_image: "https://pikaso.cdnpk.net/private/production/2896258270/upload.png?token=exp=1766793600~hmac=2c97790b8d7ad380363ac432f166f4bda712d727f48dcdceefd435b6a6c6d21b&preview=1", // Default fallback
     about_text: "Loading content...",
     about_title: "/ABOUT",
     about_footer: "Loading...",
@@ -342,6 +343,8 @@ const App: React.FC = () => {
               setTitle={(v) => updateSetting('hero_title', v)}
               subtitle={settings.hero_subtitle}
               setSubtitle={(v) => updateSetting('hero_subtitle', v)}
+              heroImage={settings.hero_image}
+              setHeroImage={(v) => updateSetting('hero_image', v)}
             />
             <About 
               isLoggedIn={isLoggedIn}
