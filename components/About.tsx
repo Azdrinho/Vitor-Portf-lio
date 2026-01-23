@@ -93,7 +93,7 @@ const About: React.FC<AboutProps> = ({
                    <textarea
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      className="w-full bg-transparent border border-dashed border-gray-600 focus:border-[#00c05e] rounded-xl p-4 text-2xl md:text-4xl font-light leading-snug md:leading-tight text-white focus:outline-none resize-none"
+                      className="w-full bg-transparent border border-dashed border-gray-600 focus:border-[#00c05e] rounded-xl p-4 text-lg md:text-4xl font-light leading-relaxed md:leading-tight text-white focus:outline-none resize-none"
                       rows={6}
                    />
                </motion.div>
@@ -103,7 +103,7 @@ const About: React.FC<AboutProps> = ({
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.8 }}
-                  className="text-2xl md:text-4xl font-light leading-snug md:leading-tight"
+                  className="text-lg md:text-4xl font-light leading-relaxed md:leading-tight"
                 >
                   "{text}"
                 </motion.p>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid, Loader2, Link, Rows, Camera } from 'lucide-react';
+import { X, Heart, Save, Sliders, Image as ImageIcon, FileText, Check, Trash2, GripVertical, Plus, LayoutGrid, Loader2, Link, Rows, Camera, Download, ArrowRight } from 'lucide-react';
 import { Project, BlockData, BlockSize } from '../types';
 import { uploadImage } from '../lib/storage'; // Import upload utility
 
@@ -54,6 +54,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const [isUploading, setIsUploading] = useState(false); // General upload loading state
   const [isUploadingCover, setIsUploadingCover] = useState(false); // Specific cover upload state
 
+  // -- Behance Import State --
+  const [showBehanceInput, setShowBehanceInput] = useState(false);
+  const [behanceUrl, setBehanceUrl] = useState('');
+  const [isImportingBehance, setIsImportingBehance] = useState(false);
+
   // -- Refs for Image Upload --
   const fileInputRef = useRef<HTMLInputElement>(null); // For blocks
   const coverInputRef = useRef<HTMLInputElement>(null); // For cover
@@ -72,7 +77,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
   const handleSave = () => {
     const plainImages = blocks.map(b => b.url);
     
-    // We now use the explicit 'coverImage' state instead of deriving it from blocks[0]
+    // Logic: If cover image is placeholder or empty, and we have blocks, use the first block as cover
+    let finalCover = coverImage;
+    const isPlaceholder = !finalCover || finalCover.includes('placehold.co') || finalCover.includes('placeholder');
+    
+    if (isPlaceholder && blocks.length > 0 && blocks[0].url) {
+        finalCover = blocks[0].url;
+        setCoverImage(finalCover); // Update local state for immediate feedback
+    }
+
     onSave({
       ...project,
       title,
@@ -82,7 +95,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
       blocks: blocks,
       gap,
       layoutMode,
-      image: coverImage, // Save the explicit cover image
+      image: finalCover, // Save the calculated cover
       likes 
     });
     
@@ -127,16 +140,77 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
     setHasUnsavedChanges(true);
   };
 
-  const handleAddUrlBlock = () => {
-    const url = window.prompt("Paste direct Image URL (e.g. Behance source):");
-    if (url) {
-        const newBlock: BlockData = {
-            id: Math.random().toString(36).substr(2, 9),
-            url: url,
-            size: 'big' // Default to big
-        };
-        setBlocks([...blocks, newBlock]);
-        setHasUnsavedChanges(true);
+  const handleBehanceImport = async () => {
+    if (!behanceUrl.trim()) return;
+    setIsImportingBehance(true);
+
+    try {
+        const urlToCheck = behanceUrl.trim();
+        const isGallery = urlToCheck.includes('behance.net/gallery');
+        
+        if (isGallery) {
+             // 1. Fetch via Proxy
+             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlToCheck)}`;
+             const res = await fetch(proxyUrl);
+             if (!res.ok) throw new Error('Network response was not ok');
+             const html = await res.text();
+             
+             // 2. Flexible Regex for Behance Images
+             const imgRegex = /(https:\/\/(mir-s3-cdn-cf|m1)\.behance\.net\/project_modules\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\.(jpg|png|jpeg|webp|gif))/gi;
+             const found = html.match(imgRegex);
+             
+             if (found && found.length > 0) {
+                 const unique = [...new Set(found)]; // remove duplicates
+                 
+                 const newBlocks: BlockData[] = unique.map(url => ({
+                     id: Math.random().toString(36).substr(2, 9),
+                     url: url,
+                     size: 'wide' // Default to wide for project images
+                 }));
+                 setBlocks(prev => [...prev, ...newBlocks]);
+
+                 // Auto-set cover image if current is placeholder
+                 const isPlaceholder = !coverImage || coverImage.includes('placehold.co');
+                 if (isPlaceholder && newBlocks.length > 0) {
+                     setCoverImage(newBlocks[0].url);
+                 }
+
+                 setHasUnsavedChanges(true);
+                 setShowBehanceInput(false);
+                 setBehanceUrl('');
+                 alert(`Successfully imported ${unique.length} images from Behance project.`);
+             } else {
+                 throw new Error("No image links found in the page source.");
+             }
+        } else {
+             // Treat as direct link
+             const newBlock: BlockData = {
+                 id: Math.random().toString(36).substr(2, 9),
+                 url: urlToCheck,
+                 size: 'big'
+             };
+             setBlocks(prev => [...prev, newBlock]);
+             setHasUnsavedChanges(true);
+             setShowBehanceInput(false);
+             setBehanceUrl('');
+        }
+    } catch (e: any) {
+        console.error("Behance import error", e);
+        const errorMessage = e.message || "Unknown error";
+        
+        if (confirm(`Could not automatically scrape images (${errorMessage}). \n\nDo you want to add this URL as a single direct image instead?`)) {
+             const newBlock: BlockData = {
+                 id: Math.random().toString(36).substr(2, 9),
+                 url: behanceUrl,
+                 size: 'big'
+             };
+             setBlocks(prev => [...prev, newBlock]);
+             setHasUnsavedChanges(true);
+             setShowBehanceInput(false);
+             setBehanceUrl('');
+        }
+    } finally {
+        setIsImportingBehance(false);
     }
   };
 
@@ -234,105 +308,104 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
         onClick={(e) => e.stopPropagation()}
       />
 
-      {/* --- Header --- */}
-      <div 
-        className="w-full bg-white z-30 flex justify-between items-start pt-8 px-6 md:px-12 pb-4 shrink-0 border-b border-transparent"
-        onClick={(e) => e.stopPropagation()}
-      >
-         {/* Left Side: Cover + Info */}
-         <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl">
-            
-            {/* Cover Image Editor */}
-            <div className="relative group shrink-0 w-32 h-32 md:w-48 md:h-48 bg-gray-100 rounded-lg overflow-hidden shadow-sm self-start">
-                <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
-                
-                {/* Upload Overlay */}
-                {isLoggedIn && (
-                    <div 
-                        onClick={triggerCoverUpload}
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer hover:bg-black/50"
-                    >
-                        {isUploadingCover ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
-                        <span className="text-[10px] font-bold uppercase tracking-widest mt-2">Change Cover</span>
-                    </div>
-                )}
-            </div>
-
-            {/* Text Inputs */}
-            <div className="flex flex-col w-full">
-                
-                {/* Category */}
-                <div className="mb-2">
-                    {isLoggedIn ? (
-                    <input 
-                        value={category}
-                        onChange={(e) => { setCategory(e.target.value); setHasUnsavedChanges(true); }}
-                        className="text-xs font-bold uppercase tracking-widest text-[#00c05e] bg-transparent focus:outline-none w-full placeholder-gray-300"
-                        placeholder="CATEGORY"
-                    />
-                    ) : (
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{category}</span>
-                    )}
-                </div>
-
-                {/* Title */}
-                <div className="mb-4">
-                    {isLoggedIn ? (
-                    <input 
-                        value={title}
-                        onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
-                        className="font-heading text-4xl md:text-6xl uppercase leading-none bg-transparent focus:outline-none w-full placeholder-gray-200"
-                        placeholder="PROJECT TITLE"
-                    />
-                    ) : (
-                    <h2 className="font-heading text-4xl md:text-6xl uppercase leading-none">{title}</h2>
-                    )}
-                </div>
-
-                {/* Description */}
-                <div className="w-full">
-                    {isLoggedIn ? (
-                        <div className="relative group">
-                            <textarea 
-                                value={description}
-                                onChange={(e) => { setDescription(e.target.value); setHasUnsavedChanges(true); }}
-                                placeholder="Add a brief description about this project..."
-                                className="w-full text-lg md:text-xl font-light text-gray-600 bg-transparent focus:text-black focus:outline-none resize-none overflow-hidden min-h-[3em] placeholder-gray-200"
-                                style={{ height: 'auto' }}
-                                rows={2}
-                                spellCheck={false}
-                            />
-                            <span className="absolute -left-6 top-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <FileText size={16} />
-                            </span>
-                        </div>
-                    ) : (
-                        description && (
-                            <p className="text-lg md:text-xl font-light text-gray-600 leading-relaxed max-w-2xl">
-                                {description}
-                            </p>
-                        )
-                    )}
-                </div>
-            </div>
-
-         </div>
-         
-         {/* Close Button */}
-         <div className="flex items-center gap-4 pl-4">
-            <button 
-              onClick={onClose}
-              className="w-12 h-12 bg-gray-100 hover:bg-black hover:text-white rounded-full flex items-center justify-center transition-colors duration-300"
-            >
-              <X size={24} />
-            </button>
-         </div>
+      {/* --- Close Button (Fixed Overlay) --- */}
+      <div className="absolute top-6 right-6 z-50">
+        <button 
+            onClick={onClose}
+            className="w-12 h-12 bg-gray-100 hover:bg-black hover:text-white rounded-full flex items-center justify-center transition-colors duration-300 shadow-md"
+        >
+            <X size={24} />
+        </button>
       </div>
 
       {/* --- Scrollable Content --- */}
-      <div className="flex-1 overflow-y-auto w-full bg-white px-6 md:px-12 pb-40" onClick={onClose}>
-        <div className="container mx-auto pt-8" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-1 overflow-y-auto w-full bg-white px-6 md:px-12 pb-40 pt-20" onClick={onClose}>
+        <div className="container mx-auto" onClick={(e) => e.stopPropagation()}>
             
+            {/* Header / Project Info - MOVED INSIDE SCROLLABLE AREA */}
+            <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl mb-12">
+            
+                {/* Cover Image Editor */}
+                <div className="relative group shrink-0 w-32 h-32 md:w-48 md:h-48 bg-gray-100 rounded-lg overflow-hidden shadow-sm self-start">
+                    {/* Updated to check for placeholder in preview mode too */}
+                    <img 
+                        src={(!coverImage || coverImage.includes('placehold.co')) && blocks.length > 0 ? blocks[0].url : coverImage} 
+                        alt="Cover" 
+                        className="w-full h-full object-cover" 
+                    />
+                    
+                    {/* Upload Overlay */}
+                    {isLoggedIn && (
+                        <div 
+                            onClick={triggerCoverUpload}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer hover:bg-black/50"
+                        >
+                            {isUploadingCover ? <Loader2 size={24} className="animate-spin" /> : <Camera size={24} />}
+                            <span className="text-[10px] font-bold uppercase tracking-widest mt-2">Change Cover</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Text Inputs */}
+                <div className="flex flex-col w-full">
+                    
+                    {/* Category */}
+                    <div className="mb-2">
+                        {isLoggedIn ? (
+                        <input 
+                            value={category}
+                            onChange={(e) => { setCategory(e.target.value); setHasUnsavedChanges(true); }}
+                            className="text-xs font-bold uppercase tracking-widest text-[#00c05e] bg-transparent focus:outline-none w-full placeholder-gray-300"
+                            placeholder="CATEGORY"
+                        />
+                        ) : (
+                        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{category}</span>
+                        )}
+                    </div>
+
+                    {/* Title */}
+                    <div className="mb-4">
+                        {isLoggedIn ? (
+                        <input 
+                            value={title}
+                            onChange={(e) => { setTitle(e.target.value); setHasUnsavedChanges(true); }}
+                            className="font-heading text-4xl md:text-6xl uppercase leading-none bg-transparent focus:outline-none w-full placeholder-gray-200"
+                            placeholder="PROJECT TITLE"
+                        />
+                        ) : (
+                        <h2 className="font-heading text-4xl md:text-6xl uppercase leading-none">{title}</h2>
+                        )}
+                    </div>
+
+                    {/* Description */}
+                    <div className="w-full">
+                        {isLoggedIn ? (
+                            <div className="relative group">
+                                <textarea 
+                                    value={description}
+                                    onChange={(e) => { setDescription(e.target.value); setHasUnsavedChanges(true); }}
+                                    placeholder="Add a brief description about this project..."
+                                    className="w-full text-lg md:text-xl font-light text-gray-600 bg-transparent focus:text-black focus:outline-none resize-none overflow-hidden min-h-[3em] placeholder-gray-200"
+                                    style={{ height: 'auto' }}
+                                    rows={2}
+                                    spellCheck={false}
+                                />
+                                <span className="absolute -left-6 top-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <FileText size={16} />
+                                </span>
+                            </div>
+                        ) : (
+                            description && (
+                                <p className="text-lg md:text-xl font-light text-gray-600 leading-relaxed max-w-2xl">
+                                    {description}
+                                </p>
+                            )
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Grid Content */}
             <Reorder.Group 
                 axis={layoutMode === 'pdf' ? "y" : undefined}
                 values={blocks} 
@@ -490,13 +563,46 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose, isLoggedI
                         <span className="font-bold uppercase tracking-widest text-xs">Add Placeholder</span>
                     </button>
 
-                    <button 
-                        onClick={handleAddUrlBlock}
-                        className="w-full py-6 border-2 border-dashed border-[#00c05e]/30 rounded-xl flex flex-col items-center justify-center gap-2 text-[#00c05e] hover:border-[#00c05e] hover:bg-[#00c05e]/5 transition-all group"
-                    >
-                        <Link size={24} className="group-hover:scale-110 transition-transform" />
-                        <span className="font-bold uppercase tracking-widest text-xs">Add via URL (Behance)</span>
-                    </button>
+                    <div className="w-full">
+                        {!showBehanceInput ? (
+                            <button 
+                                onClick={() => setShowBehanceInput(true)}
+                                className="w-full h-full py-6 border-2 border-dashed border-[#00c05e]/30 rounded-xl flex flex-col items-center justify-center gap-2 text-[#00c05e] hover:border-[#00c05e] hover:bg-[#00c05e]/5 transition-all group"
+                            >
+                                <Link size={24} className="group-hover:scale-110 transition-transform" />
+                                <span className="font-bold uppercase tracking-widest text-xs">Import from Behance / URL</span>
+                            </button>
+                        ) : (
+                            <div className="w-full h-full p-4 border-2 border-[#00c05e] rounded-xl flex flex-col gap-3 bg-[#00c05e]/5">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#00c05e] flex items-center gap-2">
+                                    <Download size={12}/> Import Images
+                                </span>
+                                <div className="flex gap-2">
+                                    <input 
+                                        autoFocus
+                                        value={behanceUrl}
+                                        onChange={(e) => setBehanceUrl(e.target.value)}
+                                        placeholder="Paste Behance Project URL or Image Link..."
+                                        className="flex-1 bg-white text-sm p-2 rounded border border-[#00c05e]/30 focus:outline-none focus:border-[#00c05e] text-black"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleBehanceImport()}
+                                    />
+                                    <button 
+                                        onClick={handleBehanceImport}
+                                        disabled={isImportingBehance}
+                                        className="bg-[#00c05e] text-white p-2 rounded hover:bg-black transition-colors disabled:opacity-50"
+                                    >
+                                        {isImportingBehance ? <Loader2 size={18} className="animate-spin"/> : <ArrowRight size={18} />}
+                                    </button>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                     <p className="text-[9px] text-gray-500">
+                                        Supports <strong>behance.net/gallery/...</strong> or direct links.
+                                     </p>
+                                     <button onClick={() => setShowBehanceInput(false)} className="text-[9px] uppercase font-bold text-gray-400 hover:text-black">Cancel</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

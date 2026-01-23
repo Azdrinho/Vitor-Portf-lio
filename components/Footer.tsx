@@ -94,21 +94,21 @@ const Footer: React.FC<FooterProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-center text-xs md:text-sm font-medium text-gray-500 mt-16 uppercase tracking-wide">
            <p>© 2023 Design by Vitor. All Right Reserved.</p>
            
-           <div className="flex gap-6 mt-4 md:mt-0 items-center">
+           <div className="flex flex-wrap justify-center gap-6 mt-4 md:mt-0 items-center">
               <a href="#" className="hover:text-black transition-colors">Awwwards</a>
               <a href="#" className="hover:text-black transition-colors">Dribbble</a>
               <a href="#" className="hover:text-black transition-colors">Instagram</a>
               <a href="#" className="hover:text-black transition-colors">LinkedIn</a>
+              
+              {/* Admin Button Moved Here */}
+              <button 
+                onClick={onAdminClick} 
+                className="hover:text-black transition-colors flex items-center gap-1 cursor-pointer"
+                title="Admin Access"
+              >
+                Admin <Settings size={12} className="mb-[2px]" />
+              </button>
            </div>
-        </div>
-
-        <div className="mt-12 flex justify-center md:justify-end">
-           <button 
-             onClick={onAdminClick} 
-             className="text-[10px] uppercase tracking-widest text-gray-400 hover:text-black flex items-center gap-1 transition-colors opacity-50 hover:opacity-100"
-           >
-             <Settings size={12} /> Admin Access
-           </button>
         </div>
 
       </div>

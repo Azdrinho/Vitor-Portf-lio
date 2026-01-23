@@ -26,11 +26,29 @@ const Process: React.FC<ProcessProps> = ({
     subtitle,
     setSubtitle
 }) => {
+  
+  // Helper to determine the best display image
+  const getDisplayImage = (project: Project) => {
+    const isPlaceholder = !project.image || project.image.includes('placehold.co') || project.image.includes('placeholder');
+    
+    // If specific cover exists and is not a placeholder, use it
+    if (!isPlaceholder) return project.image;
+    
+    // Fallback: Try to find the first valid image in blocks
+    if (project.blocks && project.blocks.length > 0) {
+        const firstBlockImage = project.blocks.find(b => b.url && !b.url.includes('placehold.co'));
+        if (firstBlockImage) return firstBlockImage.url;
+    }
+    
+    // Final fallback: return the placeholder
+    return project.image;
+  };
+
   return (
-    <section className="bg-black text-white relative z-10">
+    <section className="bg-[#111] text-white relative z-10">
       
       {/* Header */}
-      <div className="pt-24 pb-12 px-6 md:px-12 bg-black">
+      <div className="pt-24 pb-12 px-6 md:px-12 bg-[#111]">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -80,9 +98,12 @@ const Process: React.FC<ProcessProps> = ({
       </div>
 
       {/* CSS Grid - Perfectly Rectangular Block */}
-      <div className="w-full bg-black grid grid-cols-1 md:grid-cols-3 auto-rows-[300px] md:auto-rows-[400px] gap-0">
+      <div className="w-full bg-[#111] grid grid-cols-1 md:grid-cols-3 auto-rows-[300px] md:auto-rows-[400px] gap-0">
         
-        {projects.map((item, index) => (
+        {projects.map((item, index) => {
+          const displayImage = getDisplayImage(item);
+          
+          return (
           <motion.div
             key={item.id}
             layoutId={`project-${item.id}`} // Ensures Framer tracks this specific element across moves
@@ -100,7 +121,7 @@ const Process: React.FC<ProcessProps> = ({
                 },
                 opacity: { duration: 0.4, delay: index * 0.05 } // Only delay the fade-in, not the movement
             }}
-            className={`relative w-full h-full overflow-hidden group border-[0.5px] border-gray-900 ${item.className}`}
+            className={`relative w-full h-full overflow-hidden group border-[0.5px] border-[#222] ${item.className}`}
           >
             
             {/* 1. Project Content & Click Trigger */}
@@ -112,7 +133,7 @@ const Process: React.FC<ProcessProps> = ({
                 <motion.div className="w-full h-full overflow-hidden" layout>
                     <motion.img 
                       layout // Image itself animates its size
-                      src={item.image} 
+                      src={displayImage} 
                       alt={item.title} 
                       className="w-full h-full object-cover block transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-110" 
                       loading="lazy"
@@ -151,7 +172,8 @@ const Process: React.FC<ProcessProps> = ({
             )}
 
           </motion.div>
-        ))}
+        );
+        })}
       </div>
     </section>
   );

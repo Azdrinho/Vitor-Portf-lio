@@ -55,7 +55,7 @@ const Hero: React.FC<HeroProps> = ({
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
           
           {/* Inner Circle System */}
-          <div className="absolute w-[50vw] h-[50vw]">
+          <div className="absolute w-[150vw] h-[150vw] md:w-[50vw] md:h-[50vw]">
              {/* The Track (Line) */}
              <div className="absolute inset-0 border border-gray-400/30 rounded-full" />
              
@@ -71,7 +71,7 @@ const Hero: React.FC<HeroProps> = ({
           </div>
 
           {/* Outer Circle System */}
-          <div className="absolute w-[70vw] h-[70vw]">
+          <div className="absolute w-[190vw] h-[190vw] md:w-[70vw] md:h-[70vw]">
              {/* The Track (Line) */}
              <div className="absolute inset-0 border border-gray-400/20 rounded-full" />
              
@@ -93,7 +93,7 @@ const Hero: React.FC<HeroProps> = ({
         style={{ y: textY }}
         className="absolute inset-0 flex items-center justify-center z-[1] pointer-events-none select-none"
       >
-        <h1 className="font-heading text-[22vw] md:text-[24vw] leading-none uppercase text-black tracking-tighter text-center whitespace-nowrap">
+        <h1 className="font-heading text-[28vw] md:text-[24vw] leading-none uppercase text-black tracking-tighter text-center whitespace-nowrap">
           GONZALEZ
         </h1>
       </motion.div>
@@ -142,8 +142,8 @@ const Hero: React.FC<HeroProps> = ({
                 transition={{ delay: 0.8, duration: 0.8 }}
                 className="absolute bottom-12 right-6 md:right-12 flex flex-col items-center gap-4 pointer-events-auto"
               >
-                 <span className="text-xs font-semibold uppercase tracking-widest text-black">Scroll down</span>
-                 <div className="h-12 w-[1px] bg-black"></div>
+                 <span className="text-xs font-semibold uppercase tracking-widest text-white md:text-black">Scroll down</span>
+                 <div className="h-12 w-[1px] bg-white md:bg-black"></div>
               </motion.div>
           </div>
       </div>
