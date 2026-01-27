@@ -1,10 +1,12 @@
 // Define block size types available in the editor
 export type BlockSize = 'square' | 'wide' | 'tall' | 'big';
+export type BlockType = 'image' | 'video';
 
 export interface BlockData {
   id: string;
   url: string;
   size: BlockSize;
+  type?: BlockType;
 }
 
 // Define the Project Interface

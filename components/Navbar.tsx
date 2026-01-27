@@ -138,7 +138,7 @@ const Navbar: React.FC = () => {
               </div>
                
               <div className="absolute bottom-12 text-gray-500 text-xs uppercase tracking-widest font-mono">
-                  Design by Vitor © 2024
+                  Design by Vitor © 2026
               </div>
           </motion.div>
         )}

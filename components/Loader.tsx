@@ -66,7 +66,7 @@ const Loader: React.FC = () => {
                 transition={{ delay: 0.2 }}
                 className="font-mono text-[10px] uppercase tracking-widest text-gray-500"
             >
-                Portfolio 2024
+                Portfolio 2026
             </motion.span>
 
             <motion.span 

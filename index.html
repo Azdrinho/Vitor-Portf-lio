@@ -15,6 +15,12 @@
         background-color: #f3f3f3;
         overflow-x: hidden;
       }
+      /* Hide default cursor on desktop for premium feel */
+      @media (pointer: fine) {
+        body, a, button, input, textarea {
+          cursor: none !important;
+        }
+      }
       h1, h2, h3, .font-heading {
         font-family: 'Oswald', sans-serif;
       }

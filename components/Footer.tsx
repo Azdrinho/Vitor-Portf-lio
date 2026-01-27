@@ -92,13 +92,12 @@ const Footer: React.FC<FooterProps> = ({
 
         {/* Copyright & Socials */}
         <div className="flex flex-col md:flex-row justify-between items-center text-xs md:text-sm font-medium text-gray-500 mt-16 uppercase tracking-wide">
-           <p>© 2023 Design by Vitor. All Right Reserved.</p>
+           <p>© 2026 Design by Vitor. All Right Reserved.</p>
            
            <div className="flex flex-wrap justify-center gap-6 mt-4 md:mt-0 items-center">
-              <a href="#" className="hover:text-black transition-colors">Awwwards</a>
-              <a href="#" className="hover:text-black transition-colors">Dribbble</a>
-              <a href="#" className="hover:text-black transition-colors">Instagram</a>
-              <a href="#" className="hover:text-black transition-colors">LinkedIn</a>
+              <a href="https://www.behance.net/vitorgonzalezz?" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">Behance</a>
+              <a href="https://www.instagram.com/vitorgonzalezzz/" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">Instagram</a>
+              <a href="https://www.linkedin.com/in/vitor-gonzalez-379096210/" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">LinkedIn</a>
               
               {/* Admin Button Moved Here */}
               <button 

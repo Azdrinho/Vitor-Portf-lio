@@ -121,7 +121,7 @@ const Process: React.FC<ProcessProps> = ({
                 },
                 opacity: { duration: 0.4, delay: index * 0.05 } // Only delay the fade-in, not the movement
             }}
-            className={`relative w-full h-full overflow-hidden group border-[0.5px] border-[#222] ${item.className}`}
+            className={`relative w-full h-full overflow-hidden group border-[0.5px] border-[#222] cursor-view-zone ${item.className}`}
           >
             
             {/* 1. Project Content & Click Trigger */}

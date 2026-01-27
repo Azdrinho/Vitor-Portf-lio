@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Loader from './components/Loader';
@@ -7,13 +8,14 @@ import About from './components/About';
 import Marquee from './components/Marquee';
 import Work from './components/Work';
 import Process from './components/Process';
+import Testimonials from './components/Testimonials';
 import Footer from './components/Footer';
 import ProjectModal from './components/ProjectModal';
 import AdminPanel from './components/AdminPanel';
+import CustomCursor from './components/CustomCursor';
 import { supabase } from './lib/supabaseClient';
-import { Project, BlockData, BlockSize } from './types';
+import { Project, BlockData, BlockSize, BlockType } from './types';
 
-// --- LAYOUT ALGORITHM ---
 const reflowGrid = (projects: Project[]): Project[] => {
   const newProjects = [...projects];
   let i = 0;
@@ -21,48 +23,30 @@ const reflowGrid = (projects: Project[]): Project[] => {
 
   while (i < newProjects.length) {
     const remaining = newProjects.length - i;
-    
-    // Pattern 0: Big Left (Needs 2)
     if (pattern === 0 && remaining >= 2) {
         newProjects[i].className = "md:col-span-2 md:row-span-2";
         newProjects[i+1].className = "md:col-span-1 md:row-span-2";
-        i += 2;
-        pattern = 1;
-    }
-    // Pattern 1: Three Small (Needs 3)
-    else if (pattern === 1 && remaining >= 3) {
+        i += 2; pattern = 1;
+    } else if (pattern === 1 && remaining >= 3) {
         newProjects[i].className = "md:col-span-1 md:row-span-1";
         newProjects[i+1].className = "md:col-span-1 md:row-span-1";
         newProjects[i+2].className = "md:col-span-1 md:row-span-1";
-        i += 3;
-        pattern = 2;
-    }
-    // Pattern 2: Wide Left (Needs 2)
-    else if (pattern === 2 && remaining >= 2) {
+        i += 3; pattern = 2;
+    } else if (pattern === 2 && remaining >= 2) {
         newProjects[i].className = "md:col-span-2 md:row-span-1";
         newProjects[i+1].className = "md:col-span-1 md:row-span-1";
-        i += 2;
-        pattern = 3;
-    }
-    // Pattern 3: Big Right (Needs 2)
-    else if (pattern === 3 && remaining >= 2) {
+        i += 2; pattern = 3;
+    } else if (pattern === 3 && remaining >= 2) {
         newProjects[i].className = "md:col-span-1 md:row-span-2";
         newProjects[i+1].className = "md:col-span-2 md:row-span-2";
-        i += 2;
-        pattern = 4;
-    }
-    // Pattern 4: Wide Right (Needs 2)
-    else if (pattern === 4 && remaining >= 2) {
+        i += 2; pattern = 4;
+    } else if (pattern === 4 && remaining >= 2) {
         newProjects[i].className = "md:col-span-1 md:row-span-1";
         newProjects[i+1].className = "md:col-span-2 md:row-span-1";
-        i += 2;
-        pattern = 0; // Loop back
-    }
-    // Fallback: Single Square
-    else {
+        i += 2; pattern = 0; 
+    } else {
         newProjects[i].className = "md:col-span-1 md:row-span-1";
-        i += 1;
-        pattern = 0; 
+        i += 1; pattern = 0; 
     }
   }
   return newProjects;
@@ -70,324 +54,149 @@ const reflowGrid = (projects: Project[]): Project[] => {
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  
-  // -- Global Content State --
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   
-  // Settings State
   const [settings, setSettings] = useState<Record<string, string>>({
     hero_title: "Freelance",
     hero_subtitle: "Designer & Developer",
-    hero_image: "https://pikaso.cdnpk.net/private/production/2896258270/upload.png?token=exp=1766793600~hmac=2c97790b8d7ad380363ac432f166f4bda712d727f48dcdceefd435b6a6c6d21b&preview=1", // Default fallback
-    about_text: "Loading content...",
-    about_title: "/ABOUT",
-    about_footer: "Loading...",
+    hero_image: "https://pikaso.cdnpk.net/private/production/2896258270/upload.png?token=exp=1766793600~hmac=2c97790b8d7ad380363ac432f166f4bda712d727f48dcdceefd435b6a6c6d21b&preview=1",
+    about_text: "Carregando conteúdo...",
+    about_title: "/SOBRE",
+    about_footer: "Carregando...",
     marquee_text: "DESIGN BY VITOR ✸",
-    work_desc: "Loading...",
+    work_desc: "Carregando...",
     process_title: "Visual Archive",
-    process_subtitle: "Loading...",
+    process_subtitle: "Carregando...",
     footer_cta: "Let's Work Together",
-    footer_big_text: "VITOR GONZALEZ"
+    footer_big_text: "VITOR GONZALEZ",
+    testimonials_json: "[]"
   });
 
-  // -- Admin State --
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const saveToSupabase = async (key: string, value: string) => {
+    const { error } = await supabase.from('site_settings').upsert({ key, value });
+    if (error) console.error(`Erro persistência (${key}):`, error.message);
+  };
 
-  // --- SUPABASE FETCHING ---
-  
   const fetchProjects = async () => {
     try {
-      // Optimized: Fetch projects AND their blocks in a single relational query.
-      // Selecting specific columns helps performance.
-      const { data: projectsData, error: projError } = await supabase
-        .from('projects')
-        .select(`
-            *,
-            project_blocks (
-                id,
-                url,
-                size,
-                sort_order
-            )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50); // Safety limit to prevent timeouts
-
-      if (projError) throw projError;
-
-      // Merge data
-      const formattedProjects: Project[] = (projectsData || []).map((p: any) => {
-        // Sort blocks manually as nested sort behavior can vary
-        const blocks = p.project_blocks || [];
-        blocks.sort((a: any, b: any) => a.sort_order - b.sort_order);
-
-        return {
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            image: p.image,
-            description: p.description,
-            className: "", // Calculated by reflow
-            layoutMode: p.layout_mode as 'collage' | 'pdf',
-            gap: p.gap,
-            likes: p.likes,
-            blocks: blocks.map((b: any) => ({
-                id: b.id,
-                url: b.url,
-                size: b.size as BlockSize
+      const { data: projectsData, error } = await supabase.from('projects').select(`*, project_blocks (*)`).order('created_at', { ascending: false });
+      if (error) throw error;
+      const formatted = (projectsData || []).map((p: any) => ({
+            id: p.id, title: p.title, category: p.category, image: p.image, description: p.description, className: "", layoutMode: p.layout_mode, gap: p.gap, likes: p.likes,
+            blocks: (p.project_blocks || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((b: any) => ({
+                id: b.id, url: b.url, size: b.size, type: b.type || 'image'
             }))
-        };
-      });
-
-      setProjects(reflowGrid(formattedProjects));
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-    }
+      }));
+      setProjects(reflowGrid(formatted));
+    } catch (e) { console.error(e); }
   };
 
   const fetchSettings = async () => {
     try {
       const { data, error } = await supabase.from('site_settings').select('*');
       if (error) throw error;
-      
       const newSettings = { ...settings };
-      data.forEach((item: any) => {
-        newSettings[item.key] = item.value;
-      });
+      data.forEach((item: any) => { newSettings[item.key] = item.value; });
       setSettings(newSettings);
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-    }
+      return newSettings;
+    } catch (e) { console.error(e); return settings; }
   };
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        setIsLoggedIn(!!session);
-    });
-
-    // Listen for auth changes
-    const {
-        data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-        setIsLoggedIn(!!session);
-    });
-
-    const initData = async () => {
-        await Promise.all([fetchProjects(), fetchSettings()]);
-        // Reduced waiting time for snappier experience (was 2500)
-        setTimeout(() => setLoading(false), 1200);
+    supabase.auth.getSession().then(({ data: { session } }) => setIsLoggedIn(!!session));
+    supabase.auth.onAuthStateChange((_event, session) => setIsLoggedIn(!!session));
+    const init = async () => {
+        await fetchSettings();
+        await fetchProjects();
+        setTimeout(() => setLoading(false), 800);
     };
-    initData();
-
-    return () => subscription.unsubscribe();
+    init();
   }, []);
 
-
-  // --- HANDLERS ---
-
-  // Helper to update a setting in DB
-  const updateSetting = async (key: string, value: string) => {
-    // Update local immediately
+  const updateSetting = (key: string, value: string) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-    
-    // Update DB (Debounce could be added here for performance)
-    const { error } = await supabase
-        .from('site_settings')
-        .upsert({ key, value });
-        
-    if (error) console.error(`Error saving ${key}:`, error);
+    saveToSupabase(key, value);
   };
 
-  const handleAddProject = async () => {
-    // Insert empty project
-    const { data, error } = await supabase
-        .from('projects')
-        .insert([{
-            title: "New Project",
-            category: "Uncategorized",
-            image: "https://placehold.co/600x600/111/333?text=Cover+Image",
-            description: "Enter project description here...",
-        }])
-        .select()
-        .single();
-
-    if (error) {
-        console.error("Error creating project:", error);
-        return;
-    }
-
-    // Construct new project object immediately for local state
-    const newProject: Project = {
-        id: data.id,
-        title: data.title,
-        category: data.category,
-        image: data.image,
-        className: "",
-        description: data.description,
-        likes: 0,
-        blocks: [],
-        layoutMode: 'collage',
-        gap: 8
-    };
-
-    // Update local state without re-fetching everything (Major Speedup)
-    setProjects(prev => reflowGrid([newProject, ...prev]));
-    
-    // Open for editing
-    setSelectedProject(newProject);
+  const updateTestimonial = (id: string, field: string, value: string) => {
+    setSettings(prev => {
+        const currentList = JSON.parse(prev.testimonials_json || '[]');
+        const newList = currentList.map((t: any) => t.id === id ? { ...t, [field]: value } : t);
+        const updatedJson = JSON.stringify(newList);
+        saveToSupabase('testimonials_json', updatedJson);
+        return { ...prev, testimonials_json: updatedJson };
+    });
   };
 
-  const handleUpdateProject = async (updatedProject: Project) => {
-    // Optimistic Update
-    const newList = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
-    setProjects(newList);
-    setSelectedProject(updatedProject);
-
-    // 1. Update Project Details
-    const { error: projError } = await supabase
-        .from('projects')
-        .update({
-            title: updatedProject.title,
-            category: updatedProject.category,
-            description: updatedProject.description,
-            image: updatedProject.image,
-            layout_mode: updatedProject.layoutMode,
-            gap: updatedProject.gap,
-            likes: updatedProject.likes
-        })
-        .eq('id', updatedProject.id);
-
-    if (projError) console.error("Error updating project details:", projError);
-
-    // 2. Update Blocks
-    // Strategy: Delete all blocks for this project and re-insert (simplest for syncing order/removals)
-    // NOTE: In production, you might want to diff changes to avoid ID churn, but this is fine for now.
-    
-    if (updatedProject.blocks) {
-        // Delete old
-        await supabase.from('project_blocks').delete().eq('project_id', updatedProject.id);
-        
-        // Prepare new
-        const blocksToInsert = updatedProject.blocks.map((b, index) => ({
-            project_id: updatedProject.id,
-            url: b.url,
-            size: b.size,
-            sort_order: index
-        }));
-
-        if (blocksToInsert.length > 0) {
-            const { error: blocksError } = await supabase
-                .from('project_blocks')
-                .insert(blocksToInsert);
-            
-            if (blocksError) console.error("Error updating blocks:", blocksError);
-        }
-    }
+  const addTestimonial = () => {
+    setSettings(prev => {
+        const currentList = JSON.parse(prev.testimonials_json || '[]');
+        const newItem = { 
+          id: 't-' + Date.now(), 
+          text: "Clique para editar este depoimento...", 
+          author: "Novo Cliente", 
+          role: "Cargo", 
+          avatar: "" 
+        };
+        const updatedJson = JSON.stringify([...currentList, newItem]);
+        saveToSupabase('testimonials_json', updatedJson);
+        return { ...prev, testimonials_json: updatedJson };
+    });
   };
 
-  const handleDeleteProject = async (id: number) => {
-    // Optimistic UI
-    const filtered = projects.filter(p => p.id !== id);
-    setProjects(reflowGrid(filtered));
-
-    const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) {
-        console.error("Error deleting project:", error);
-        // Revert fetch if needed, but for now we assume success
-        fetchProjects();
-    }
+  const deleteTestimonial = (idToDelete: string) => {
+    console.log("App: Executando exclusão do depoimento:", idToDelete);
+    setSettings(prev => {
+      const currentList = JSON.parse(prev.testimonials_json || '[]');
+      const newList = currentList.filter((t: any) => String(t.id) !== String(idToDelete));
+      const updatedJson = JSON.stringify(newList);
+      saveToSupabase('testimonials_json', updatedJson);
+      return { ...prev, testimonials_json: updatedJson };
+    });
   };
+
+  const handleUpdateProject = async (p: Project) => {
+    setProjects(prev => prev.map(item => item.id === p.id ? p : item));
+    setSelectedProject(p);
+    await supabase.from('projects').update({ title: p.title, category: p.category, description: p.description, image: p.image, layout_mode: p.layoutMode, gap: p.gap, likes: p.likes }).eq('id', p.id);
+  };
+
+  let testimonialsData = [];
+  try {
+    testimonialsData = JSON.parse(settings.testimonials_json || '[]');
+  } catch(e) {
+    console.error("Erro ao processar JSON de depoimentos", e);
+    testimonialsData = [];
+  }
 
   return (
     <div className="bg-[#EAEAEA] min-h-screen text-black overflow-hidden relative">
-      <AnimatePresence mode="wait">
-        {loading && <Loader key="loader" />}
-      </AnimatePresence>
+      <CustomCursor />
+      <AnimatePresence mode="wait">{loading && <Loader key="loader" />}</AnimatePresence>
+      <AnimatePresence>{selectedProject && <ProjectModal project={selectedProject} onClose={() => setSelectedProject(null)} isLoggedIn={isLoggedIn} onSave={handleUpdateProject} />}</AnimatePresence>
+      <AnimatePresence>{showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}</AnimatePresence>
 
-      <AnimatePresence>
-        {selectedProject && (
-          <ProjectModal 
-            project={selectedProject} 
-            onClose={() => setSelectedProject(null)}
-            isLoggedIn={isLoggedIn}
-            onSave={handleUpdateProject}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: loading ? 0 : 1 }} transition={{ duration: 1.2 }} className="relative z-0">
+        <Navbar />
+        <main>
+          <Hero isLoggedIn={isLoggedIn} title={settings.hero_title} setTitle={(v) => updateSetting('hero_title', v)} subtitle={settings.hero_subtitle} setSubtitle={(v) => updateSetting('hero_subtitle', v)} heroImage={settings.hero_image} setHeroImage={(v) => updateSetting('hero_image', v)} />
+          <About isLoggedIn={isLoggedIn} text={settings.about_text} setText={(v) => updateSetting('about_text', v)} title={settings.about_title} setTitle={(v) => updateSetting('about_title', v)} footerText={settings.about_footer} setFooterText={(v) => updateSetting('about_footer', v)} />
+          <Marquee isLoggedIn={isLoggedIn} text={settings.marquee_text} setText={(v) => updateSetting('marquee_text', v)} />
+          <Work isLoggedIn={isLoggedIn} description={settings.work_desc} setDescription={(v) => updateSetting('work_desc', v)} />
+          <Process projects={projects} onProjectClick={setSelectedProject} isLoggedIn={isLoggedIn} onAddProject={fetchProjects} onDeleteProject={(id) => { setProjects(prev => reflowGrid(prev.filter(p => p.id !== id))); supabase.from('projects').delete().eq('id', id); }} title={settings.process_title} setTitle={(v) => updateSetting('process_title', v)} subtitle={settings.process_subtitle} setSubtitle={(v) => updateSetting('process_subtitle', v)} />
+          <Testimonials 
+            isLoggedIn={isLoggedIn} 
+            data={testimonialsData} 
+            onUpdate={updateTestimonial} 
+            onAdd={addTestimonial} 
+            onDelete={deleteTestimonial} 
           />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showAdminPanel && (
-          <AdminPanel 
-            onClose={() => setShowAdminPanel(false)}
-            isLoggedIn={isLoggedIn}
-            setIsLoggedIn={setIsLoggedIn}
-          />
-        )}
-      </AnimatePresence>
-
-      {!loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-0"
-        >
-          <Navbar />
-          <main>
-            <Hero 
-              isLoggedIn={isLoggedIn}
-              title={settings.hero_title}
-              setTitle={(v) => updateSetting('hero_title', v)}
-              subtitle={settings.hero_subtitle}
-              setSubtitle={(v) => updateSetting('hero_subtitle', v)}
-              heroImage={settings.hero_image}
-              setHeroImage={(v) => updateSetting('hero_image', v)}
-            />
-            <About 
-              isLoggedIn={isLoggedIn}
-              text={settings.about_text}
-              setText={(v) => updateSetting('about_text', v)}
-              title={settings.about_title}
-              setTitle={(v) => updateSetting('about_title', v)}
-              footerText={settings.about_footer}
-              setFooterText={(v) => updateSetting('about_footer', v)}
-            />
-            <Marquee 
-              isLoggedIn={isLoggedIn}
-              text={settings.marquee_text}
-              setText={(v) => updateSetting('marquee_text', v)}
-            />
-            <Work 
-              isLoggedIn={isLoggedIn}
-              description={settings.work_desc}
-              setDescription={(v) => updateSetting('work_desc', v)}
-            />
-            <Process 
-              projects={projects} 
-              onProjectClick={setSelectedProject}
-              isLoggedIn={isLoggedIn}
-              onAddProject={handleAddProject}
-              onDeleteProject={handleDeleteProject}
-              title={settings.process_title}
-              setTitle={(v) => updateSetting('process_title', v)}
-              subtitle={settings.process_subtitle}
-              setSubtitle={(v) => updateSetting('process_subtitle', v)}
-            />
-          </main>
-          
-          <Footer 
-            onAdminClick={() => setShowAdminPanel(true)} 
-            isLoggedIn={isLoggedIn}
-            ctaText={settings.footer_cta}
-            setCtaText={(v) => updateSetting('footer_cta', v)}
-            bigText={settings.footer_big_text}
-            setBigText={(v) => updateSetting('footer_big_text', v)}
-          />
-        </motion.div>
-      )}
+        </main>
+        <Footer onAdminClick={() => setShowAdminPanel(true)} isLoggedIn={isLoggedIn} ctaText={settings.footer_cta} setCtaText={(v) => updateSetting('footer_cta', v)} bigText={settings.footer_big_text} setBigText={(v) => updateSetting('footer_big_text', v)} />
+      </motion.div>
     </div>
   );
 };
