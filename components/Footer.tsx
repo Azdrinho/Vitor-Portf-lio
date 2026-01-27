@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Settings } from 'lucide-react';
@@ -24,12 +25,12 @@ const Footer: React.FC<FooterProps> = ({
 }) => {
   return (
     <footer id="contact" className="bg-[#EAEAEA] pt-24 pb-12 px-6 md:px-12 relative overflow-hidden">
-      <div className="container mx-auto flex flex-col h-full justify-between">
+      <div className="w-full flex flex-col h-full justify-between">
         
-        {/* CTA Top */}
-        <div className="flex flex-col md:flex-row justify-between items-stretch mb-24 md:mb-48 gap-12">
-           <div className="flex items-start gap-4 w-full max-w-2xl">
-              <ArrowUpRight size={64} className="text-black shrink-0" />
+        {/* CTA Top - Layout ajustado para alinhamento vertical */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-stretch mb-24 md:mb-48 gap-12">
+           <div className="flex flex-col items-start gap-4 w-full max-w-2xl">
+              <ArrowUpRight size={64} className="text-black shrink-0 mb-2" />
               
               {isLoggedIn && setCtaText ? (
                  <textarea 

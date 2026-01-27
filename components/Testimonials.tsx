@@ -97,7 +97,7 @@ const Testimonials: React.FC<TestimonialsProps> = ({
         }
       }} className="hidden" accept="image/*" />
       
-      <div className="container mx-auto px-6 md:px-12">
+      <div className="w-full px-6 md:px-12">
         <div className="flex flex-col md:flex-row items-start justify-between gap-10 md:gap-16">
           <div className="w-full md:w-5/12 flex flex-col justify-start relative z-10">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
@@ -163,7 +163,6 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                     </div>
                   </div>
 
-                  {/* BOTÃO DE DELETE REPOSICIONADO AQUI PARA SER CLICÁVEL COM CERTEZA */}
                   {isLoggedIn && (
                     <button 
                       type="button"
