@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
-import { Plus, Trash2, ChevronLeft, ChevronRight, X, LayoutGrid, Image as ImageIcon, Upload, Loader2, Link, ArrowRight, Shuffle } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, X, LayoutGrid, Image as ImageIcon, Upload, Loader2, Link, ArrowRight, Shuffle, Video } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { uploadImage } from '../lib/storage';
 
@@ -73,12 +74,6 @@ interface SoftwareItem {
     randomOrder?: boolean;
 }
 
-interface WorkProps {
-  isLoggedIn?: boolean;
-  description?: string;
-  setDescription?: (v: string) => void;
-}
-
 const CardSlideshow: React.FC<{ images: string[], randomOrder?: boolean }> = ({ images, randomOrder }) => {
   const [index, setIndex] = useState(0);
   
@@ -101,33 +96,69 @@ const CardSlideshow: React.FC<{ images: string[], randomOrder?: boolean }> = ({ 
     scale: 1.15 + Math.random() * 0.15
   }), [index, processedImages[index]]);
 
+  const isVideo = (url: string) => {
+    return url.match(/\.(mp4|webm|ogg)$/i) || url.includes('video');
+  };
+
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
       <AnimatePresence mode="popLayout">
-        <motion.img
-          key={processedImages[index]}
-          src={processedImages[index]}
-          alt="Slide"
-          initial={{ opacity: 0, scale: 1, x: 0, y: 0 }}
-          animate={{ 
-            opacity: 1, 
-            scale: moveDirection.scale, 
-            x: moveDirection.x, 
-            y: moveDirection.y 
-          }}
-          exit={{ opacity: 0 }}
-          transition={{ 
-            duration: 7, 
-            ease: "linear",
-            opacity: { duration: 1.5, ease: "easeInOut" }
-          }}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {isVideo(processedImages[index]) ? (
+          <motion.video
+            key={processedImages[index]}
+            src={processedImages[index]}
+            autoPlay
+            muted
+            loop
+            playsInline
+            initial={{ opacity: 0, scale: 1, x: 0, y: 0 }}
+            animate={{ 
+              opacity: 1, 
+              scale: moveDirection.scale, 
+              x: moveDirection.x, 
+              y: moveDirection.y 
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ 
+              duration: 7, 
+              ease: "linear",
+              opacity: { duration: 1.5, ease: "easeInOut" }
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <motion.img
+            key={processedImages[index]}
+            src={processedImages[index]}
+            alt="Slide"
+            initial={{ opacity: 0, scale: 1, x: 0, y: 0 }}
+            animate={{ 
+              opacity: 1, 
+              scale: moveDirection.scale, 
+              x: moveDirection.x, 
+              y: moveDirection.y 
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ 
+              duration: 7, 
+              ease: "linear",
+              opacity: { duration: 1.5, ease: "easeInOut" }
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
       </AnimatePresence>
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-80 z-10" />
     </div>
   );
 };
+
+// --- Missing WorkProps Interface Added Below ---
+interface WorkProps {
+  isLoggedIn?: boolean;
+  description?: string;
+  setDescription?: (v: string) => void;
+}
 
 const Work: React.FC<WorkProps> = ({ 
     isLoggedIn = false, 
@@ -471,16 +502,39 @@ const Work: React.FC<WorkProps> = ({
         {managingImagesId !== null && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setManagingImagesId(null)}>
                  <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-between items-center mb-6 border-b pb-4"><div className="flex flex-col"><h3 className="font-heading text-2xl uppercase">Manage Slideshow Images</h3><p className="text-xs text-gray-400">Add or remove images from this skill card.</p></div><button onClick={() => setManagingImagesId(null)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20}/></button></div>
+                    <div className="flex justify-between items-center mb-6 border-b pb-4"><div className="flex flex-col"><h3 className="font-heading text-2xl uppercase">Manage Slideshow Media</h3><p className="text-xs text-gray-400">Add or remove images and videos from this skill card.</p></div><button onClick={() => setManagingImagesId(null)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20}/></button></div>
                     <div className="flex items-center justify-between mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                        <div className="flex items-center gap-3"><div className="p-3 bg-white rounded-xl shadow-sm"><Shuffle size={20} className={items.find(i => i.id === managingImagesId)?.randomOrder ? "text-[#00c05e]" : "text-gray-400"} /></div><div className="flex flex-col"><span className="text-sm font-bold uppercase tracking-tight">Random Sequence</span><span className="text-[10px] text-gray-400">Shuffles images automatically on each load.</span></div></div>
+                        <div className="flex items-center gap-3"><div className="p-3 bg-white rounded-xl shadow-sm"><Shuffle size={20} className={items.find(i => i.id === managingImagesId)?.randomOrder ? "text-[#00c05e]" : "text-gray-400"} /></div><div className="flex flex-col"><span className="text-sm font-bold uppercase tracking-tight">Random Sequence</span><span className="text-[10px] text-gray-400">Shuffles media automatically on each load.</span></div></div>
                         <button onClick={() => { const current = items.find(i => i.id === managingImagesId); if (current) handleUpdateItem(managingImagesId!, 'randomOrder', !current.randomOrder); }} className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${items.find(i => i.id === managingImagesId)?.randomOrder ? 'bg-[#00c05e]' : 'bg-gray-200'}`}><motion.div animate={{ x: items.find(i => i.id === managingImagesId)?.randomOrder ? 28 : 4 }} className="absolute top-1 left-0 w-5 h-5 bg-white rounded-full shadow-sm" transition={{ type: "spring", stiffness: 500, damping: 30 }}/></button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                        {items.find(i => i.id === managingImagesId)?.images?.map((img, idx) => (<div key={idx} className="relative aspect-[3/4] rounded-xl overflow-hidden group shadow-md bg-gray-100"><img src={img} alt="slide" className="w-full h-full object-cover" /><button onClick={() => handleDeleteImage(managingImagesId!, img)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"><Trash2 size={14} /></button></div>))}
-                        <div className="relative aspect-[3/4] rounded-xl border-2 border-dashed border-gray-300 hover:border-[#00c05e] hover:bg-[#00c05e]/5 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group"><input type="file" accept="image/*" onChange={handleUploadImage} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isUploading} />{isUploading ? <Loader2 className="animate-spin text-[#00c05e]" /> : <Upload className="text-gray-400 group-hover:text-[#00c05e]" />}<span className="text-xs font-bold uppercase text-gray-400 group-hover:text-[#00c05e]">{isUploading ? 'Uploading...' : 'Upload Image'}</span></div>
+                        {items.find(i => i.id === managingImagesId)?.images?.map((img, idx) => (
+                          <div key={idx} className="relative aspect-[3/4] rounded-xl overflow-hidden group shadow-md bg-gray-100">
+                            {img.match(/\.(mp4|webm|ogg)$/i) ? (
+                              <video src={img} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                            ) : (
+                              <img src={img} alt="slide" className="w-full h-full object-cover" />
+                            )}
+                            <div className="absolute top-2 left-2 p-1 bg-black/50 backdrop-blur rounded text-[8px] text-white uppercase font-bold">
+                              {img.match(/\.(mp4|webm|ogg)$/i) ? 'Video' : 'Image'}
+                            </div>
+                            <button onClick={() => handleDeleteImage(managingImagesId!, img)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"><Trash2 size={14} /></button>
+                          </div>
+                        ))}
+                        <div className="relative aspect-[3/4] rounded-xl border-2 border-dashed border-gray-300 hover:border-[#00c05e] hover:bg-[#00c05e]/5 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group">
+                          <input type="file" accept="image/*,video/*" onChange={handleUploadImage} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isUploading} />
+                          {isUploading ? <Loader2 className="animate-spin text-[#00c05e]" /> : (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="flex gap-1">
+                                <ImageIcon className="text-gray-400 group-hover:text-[#00c05e]" size={16} />
+                                <Video className="text-gray-400 group-hover:text-[#00c05e]" size={16} />
+                              </div>
+                              <span className="text-xs font-bold uppercase text-gray-400 group-hover:text-[#00c05e]">Upload Media</span>
+                            </div>
+                          )}
+                        </div>
                     </div>
-                    <div className="pt-6 border-t border-gray-100"><label className="text-xs font-bold uppercase text-gray-500 block mb-2 flex items-center gap-2"><Link size={14} /> Or Add via URL</label><div className="flex gap-2"><input value={imageUrlInput} onChange={(e) => setImageUrlInput(e.target.value)} placeholder="https://example.com/image.jpg" className="flex-1 p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-[#00c05e] text-sm" onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()} /><button onClick={handleAddUrl} disabled={!imageUrlInput.trim()} className="bg-[#00c05e] text-white px-4 rounded-xl hover:bg-black transition-colors disabled:opacity-50"><ArrowRight size={20} /></button></div></div>
+                    <div className="pt-6 border-t border-gray-100"><label className="text-xs font-bold uppercase text-gray-500 block mb-2 flex items-center gap-2"><Link size={14} /> Or Add via URL (MP4, PNG, JPG)</label><div className="flex gap-2"><input value={imageUrlInput} onChange={(e) => setImageUrlInput(e.target.value)} placeholder="https://example.com/media.mp4" className="flex-1 p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-[#00c05e] text-sm" onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()} /><button onClick={handleAddUrl} disabled={!imageUrlInput.trim()} className="bg-[#00c05e] text-white px-4 rounded-xl hover:bg-black transition-colors disabled:opacity-50"><ArrowRight size={20} /></button></div></div>
                 </motion.div>
             </motion.div>
         )}
