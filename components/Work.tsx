@@ -315,13 +315,13 @@ const Work: React.FC<WorkProps> = ({
   };
 
   return (
-    <section id="work" className="relative pt-24 pb-16 md:pt-32 bg-[#EAEAEA] border-t border-gray-300 overflow-hidden">
+    <section id="work" className="relative pt-12 pb-16 md:pt-16 bg-[#EAEAEA] border-t border-gray-300 overflow-hidden">
       
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-5">
          <div className="absolute top-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full border-[100px] border-black/20" />
       </div>
 
-      <div className="container mx-auto px-6 md:px-12 relative z-10 mb-10">
+      <div className="w-full px-6 md:px-12 relative z-10 mb-8 md:mb-12">
         <div className="flex flex-col md:flex-row justify-between items-end gap-8">
           <div className="w-full max-w-2xl">
               {isLoggedIn && setDescription ? (
